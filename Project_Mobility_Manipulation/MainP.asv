@@ -1,0 +1,264 @@
+%% =========------ Fall 2023 - Mobility and Manipulation -------===========
+% ==========------- Project  - Geeta Koduri, Johir Suresh --------=========
+% ====================------------- SetUp --------------===================
+clear all; close all; clc;
+
+L1 = 1.5; L2 = 1;
+r = 0.5;
+bw = 0.6;
+
+a = 2.5;
+b = 0.5;
+
+ec = [0.5 0.5];
+
+s = 3.5;
+sc = [1 1];
+
+th = 0:360;
+th = deg2rad(th);
+%% ============-------- Desired Points on the ellipse -------==============
+xe = a.*cos(th);
+ye = b.*sin(th);
+
+R = [cosd(60) -sind(60) ec(1);
+    sind(60) cosd(60) ec(2);
+    0 0 1];
+
+for i = 1:length(xe)
+    DTe(:,i) = R*[xe(i); ye(i); 1];
+end
+
+DTe(3,:) = [];
+
+%% ============-------- Desired Points on the Square -------==============
+for i = 1:length(th)
+    if th(i) <= (pi/4)
+        DTs(:,i) = [sc(1)+s;
+            sc(2)+s*tan(th(i))];
+    elseif ((pi/4) < th(i)) &&  (th(i) <= (3*pi/4))
+        DTs(:,i) = [sc(1)+s*cot(th(i));
+            sc(2)+s];
+    elseif ((3*pi/4) < th(i)) && (th(i) <= (5*pi/4))
+        DTs(:,i) = [-s+sc(1);
+            -s*tan(th(i))+sc(2)];
+    elseif ((5*pi/4) < th(i)) && (th(i) <= (7*pi/4))
+        DTs(:,i) = [-s*cot(th(i))+sc(1);
+            -s+sc(2)];
+    elseif ((7*pi/4) < th(i)) && (th(i) <= (2*pi))
+        DTs(:,i) = [sc(1)+s;
+            sc(2)+s*tan(th(i))];
+    end
+end
+
+%% ==============----------- Initialize q - ellipse ---------==============
+IntE = IniInvKinP(DTe(:,1));
+
+%% ==============----------- Initialize q - square ----------==============
+IntS = IniInvKin(DTs(:,1));
+
+%% ==========------- Ellipse movement - Pseudo Inverse -----------=========
+T = 60;
+
+[tqe,qPIe] = ode45(@PsuedoInvEllipseP,[0,T],IntE);
+
+% forward kinematics
+for i = 1:length(qPIe)
+R = [cos(qPIe(i,3)) -sin(qPIe(i,3)); sin(qPIe(i,3)) cos(qPIe(i,3))];
+xtemp = L1.*cos(qPIe(i,6))+L2.*cos(qPIe(i,6)+qPIe(i,7));
+ytemp = L1.*sin(qPIe(i,6))+L2.*sin(qPIe(i,6)+qPIe(i,7));
+
+xeo1(:,i) = [qPIe(i,1);qPIe(i,2)] + R*[xtemp;ytemp];
+end
+%
+figure(1)
+hold on
+plot(xeo1(1,i),xeo1(2,i),'*')
+plot(DTe(1,:),DTe(2,:),'-.')
+
+%% ==========------- Square movement - Pseudo Inverse -----------=========
+T = 30;
+
+[tqs,qPIs] = ode45(@PsuedoInvSquare,[0,T],IntS);
+
+% forward kinematics
+xso1 = qPIs(:,1)+L1.*cos(qPIs(:,6))+L2.*cos(qPIs(:,7));
+yso1 = qPIs(:,2)+L1.*sin(qPIs(:,6))+L2.*sin(qPIs(:,7));
+
+%
+figure(2)
+hold on
+plot(xso1,yso1)
+plot(DTs(1,:),DTs(2,:))
+
+%% ==========------- Ellipse movement - T1T2Zero -----------=========
+T = 60;
+
+[tqe,qPIe] = ode45(@T1T2ZeroEllipseP,[0,T],IntE);
+
+% forward kinematics
+for i = 1:length(qPIe)
+R = [cos(qPIe(i,3)) -sin(qPIe(i,3)); sin(qPIe(i,3)) cos(qPIe(i,3))];
+xtemp = L1.*cos(qPIe(i,6))+L2.*cos(qPIe(i,6)+qPIe(i,7));
+ytemp = L1.*sin(qPIe(i,6))+L2.*sin(qPIe(i,6)+qPIe(i,7));
+
+xeo2(:,i) = [qPIe(i,1);qPIe(i,2)] + R*[xtemp;ytemp];
+end
+%
+figure(3)
+hold on
+plot(xeo2(1,:),xeo2(2,:))
+plot(DTe(1,:),DTe(2,:),'-.')
+
+%% ==========------- Square movement - T1T2Zero -----------=========
+T = 60;
+
+[tqs,qPIs] = ode45(@T1T2ZeroSquare,[0,T],IntS);
+
+% forward kinematics
+xso2 = qPIs(:,1)+L1.*cos(qPIs(:,6))+L2.*cos(qPIs(:,7));
+yso2 = qPIs(:,2)+L1.*sin(qPIs(:,6))+L2.*sin(qPIs(:,7));
+
+%
+figure(4)
+hold on
+plot(xso2,yso2)
+plot(DTs(1,:),DTs(2,:))
+
+%% ==========------- Ellipse movement - T1Zero -----------=========
+T = 60;
+
+[tqe,qPIe] = ode45(@T1ZeroEllipseP,[0,T],IntE);
+
+% forward kinematics
+for i = 1:length(qPIe)
+R = [cos(qPIe(i,3)) -sin(qPIe(i,3)); sin(qPIe(i,3)) cos(qPIe(i,3))];
+xtemp = L1.*cos(qPIe(i,6))+L2.*cos(qPIe(i,6)+qPIe(i,7));
+ytemp = L1.*sin(qPIe(i,6))+L2.*sin(qPIe(i,6)+qPIe(i,7));
+
+xeo3(:,i) = [qPIe(i,1);qPIe(i,2)] + R*[xtemp;ytemp];
+end
+%
+figure(5)
+hold on
+plot(xeo3(1,:),xeo3(2,:))
+plot(DTe(1,:),DTe(2,:),'-.')
+
+
+%% ==========------- Square movement - T1Zero -----------=========
+T = 60;
+
+[tqs,qPIs] = ode45(@T1ZeroSquare,[0,T],IntS);
+
+% forward kinematics
+xso3 = qPIs(:,1)+L1.*cos(qPIs(:,6))+L2.*cos(qPIs(:,7));
+yso3 = qPIs(:,2)+L1.*sin(qPIs(:,6))+L2.*sin(qPIs(:,7));
+
+%
+figure(6)
+hold on
+plot(xso3,yso3)
+plot(DTs(1,:),DTs(2,:))
+
+%% ==========------- Ellipse movement - Potential -----------=========
+T = 60;
+
+[tqe,qPIe] = ode45(@PotentialEllipseP,[0,T],IntE);
+
+% forward kinematics
+for i = 1:length(qPIe)
+R = [cos(qPIe(i,3)) -sin(qPIe(i,3)); sin(qPIe(i,3)) cos(qPIe(i,3))];
+xtemp = L1.*cos(qPIe(i,6))+L2.*cos(qPIe(i,6)+qPIe(i,7));
+ytemp = L1.*sin(qPIe(i,6))+L2.*sin(qPIe(i,6)+qPIe(i,7));
+
+xeo4(:,i) = [qPIe(i,1);qPIe(i,2)] + R*[xtemp;ytemp];
+end
+%
+figure(7)
+hold on
+plot(xeo4(1,:),xeo4(2,:))
+plot(DTe(1,:),DTe(2,:),'-.')
+
+%% ==========------- Square movement - Potential -----------=========
+T = 30;
+
+[tqs,qPIs] = ode45(@PotentialSquare,[0,T],IntS);
+
+% forward kinematics
+xso4 = qPIs(:,1)+L1.*cos(qPIs(:,6))+L2.*cos(qPIs(:,7));
+yso4 = qPIs(:,2)+L1.*sin(qPIs(:,6))+L2.*sin(qPIs(:,7));
+
+%
+figure(8)
+hold on
+plot(xso4,yso4)
+plot(DTs(1,:),DTs(2,:))
+
+%% =======------- Ellipse movement - Joint Space Control -----------=======
+T = 60;
+IntE = [IntE;0;0];
+[tqe,qPIe] = ode45(@JointSpaceEllipseP,[0,T],IntE);
+
+% forward kinematics
+for i = 1:length(qPIe)
+R = [cos(qPIe(i,3)) -sin(qPIe(i,3)); sin(qPIe(i,3)) cos(qPIe(i,3))];
+xtemp = L1.*cos(qPIe(i,6))+L2.*cos(qPIe(i,6)+qPIe(i,7));
+ytemp = L1.*sin(qPIe(i,6))+L2.*sin(qPIe(i,6)+qPIe(i,7));
+
+xeo5(:,i) = [qPIe(i,1);qPIe(i,2)] + R*[xtemp;ytemp];
+end
+%
+figure(9)
+hold on
+plot(xeo5(1,:),xeo5(2,:))
+plot(DTe(1,:),DTe(2,:),'-.')
+
+%% =======------- Square movement - Joint Space Control -----------========
+T = 30;
+IntS = [IntS;0;0];
+[tqs,qPIs] = ode45(@JointSpaceSquare,[0,T],IntS);
+
+% forward kinematics
+xso5 = qPIs(:,1)+L1.*cos(qPIs(:,6))+L2.*cos(qPIs(:,7));
+yso5 = qPIs(:,2)+L1.*sin(qPIs(:,6))+L2.*sin(qPIs(:,7));
+
+%
+figure(10)
+hold on
+plot(xso5,yso5)
+plot(DTs(1,:),DTs(2,:))
+
+%% =======------- Ellipse movement - Task Space Control -----------=======
+T = 30;
+
+[tqe,qPIe] = ode45(@TaskSpaceEllipseP,[0,T],IntE);
+
+% forward kinematics
+for i = 1:length(qPIe)
+R = [cos(qPIe(i,3)) -sin(qPIe(i,3)); sin(qPIe(i,3)) cos(qPIe(i,3))];
+xtemp = L1.*cos(qPIe(i,6))+L2.*cos(qPIe(i,6)+qPIe(i,7));
+ytemp = L1.*sin(qPIe(i,6))+L2.*sin(qPIe(i,6)+qPIe(i,7));
+
+xeo6(:,i) = [qPIe(i,1);qPIe(i,2)] + R*[xtemp;ytemp];
+end
+%
+figure(11)
+plot(DTe(1,:),DTe(2,:),'-.')
+hold on
+plot(xeo22(1,:),xeo22(2,:))
+
+
+%% =======------- Square movement - Task Space Control -----------========
+T = 30;
+
+[tqs,qPIs] = ode45(@TaskSpaceSquare,[0,T],IntS);
+
+% forward kinematics
+xso = qPIs(:,1)+L1.*cos(qPIs(:,6))+L2.*cos(qPIs(:,7));
+yso = qPIs(:,2)+L1.*sin(qPIs(:,6))+L2.*sin(qPIs(:,7));
+
+%
+figure(12)
+hold on
+plot(xso,yso)
+plot(DTs(1,:),DTs(2,:))
